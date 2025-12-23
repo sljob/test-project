@@ -1,0 +1,67 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+
+env:
+  DOCKER_IMAGE: sljob/my-nginx-app
+
+jobs:
+  # ===== CI: Build & Push =====
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.sha.outputs.short }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Get short SHA
+      id: sha
+      run: echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ env.DOCKER_IMAGE }}:${{ steps.sha.outputs.short }}
+          ${{ env.DOCKER_IMAGE }}:latest
+
+  # ===== CD: Deploy to Kind =====
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Deploy to Kubernetes
+      run: |
+        echo "=== Applying manifests ==="
+        kubectl apply -f k8s/
+        
+        echo "=== Updating image ==="
+        kubectl set image deployment/my-web-app \
+          nginx=${{ env.DOCKER_IMAGE }}:${{ needs.build.outputs.short_sha }}
+        
+        echo "=== Waiting for rollout ==="
+        kubectl rollout status deployment/my-web-app --timeout=120s
+
+    - name: Verify deployment
+      run: |
+        echo "=== Pods ==="
+        kubectl get pods -l app=my-web-app
+        echo ""
+        echo "=== Service ==="
+        kubectl get svc my-web-app-service
