@@ -1,38 +1,47 @@
-name: CI Pipeline
+name: CI/CD Pipeline
+
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
-# Что делать
+env:
+  IMAGE_NAME: my-nginx-app
+
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
     
     steps:
-    # Шаг 1: Получить код
+    # 1. Получить код
     - name: Checkout code
       uses: actions/checkout@v4
     
-    # Шаг 2: Показать информацию
-    - name: Show info
+    # 2. Информация о сборке
+    - name: Build info
       run: |
-        echo "🎉 CI Pipeline запущен!"
+        echo "🚀 Сборка образа..."
         echo "📦 Репозиторий: ${{ github.repository }}"
-        echo "🌿 Ветка: ${{ github.ref_name }}"
-        echo "📝 Коммит: ${{ github.sha }}"
-        echo ""
-        echo "📁 Файлы в репозитории:"
-        ls -la
+        echo "🏷️ Коммит: ${{ github.sha }}"
     
-    # Шаг 3: Проверить Dockerfile
-    - name: Check Dockerfile
+    # 3. Логин в Docker Hub
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    # 4. Собрать и запушить образ
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+    
+    # 5. Успех!
+    - name: Done
       run: |
-        if [ -f Dockerfile ]; then
-          echo "✅ Dockerfile найден"
-          echo "--- Содержимое ---"
-          cat Dockerfile
-        else
-          echo "⚠️ Dockerfile не найден"
-        fi
+        echo "✅ Образ собран и загружен!"
+        echo "🐳 ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
