@@ -46,22 +46,19 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Pull and load image to Kind
+      run: |
+        docker pull ${{ env.DOCKER_IMAGE }}:${{ needs.build.outputs.short_sha }}
+        kind load docker-image ${{ env.DOCKER_IMAGE }}:${{ needs.build.outputs.short_sha }}
+
     - name: Deploy to Kubernetes
       run: |
-        echo "=== Applying manifests ==="
         kubectl apply -f k8s/
-        
-        echo "=== Updating image ==="
         kubectl set image deployment/my-web-app \
           nginx=${{ env.DOCKER_IMAGE }}:${{ needs.build.outputs.short_sha }}
-        
-        echo "=== Waiting for rollout ==="
         kubectl rollout status deployment/my-web-app --timeout=120s
 
     - name: Verify deployment
       run: |
-        echo "=== Pods ==="
         kubectl get pods -l app=my-web-app
-        echo ""
-        echo "=== Service ==="
-        kubectl get svc my-web-app-service
+        docker exec kind-control-plane curl -s localhost:30080 | head -5
