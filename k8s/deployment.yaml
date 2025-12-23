@@ -17,7 +17,7 @@ spec:
       containers:
       - name: nginx
         image: sljob/my-nginx-app:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
         resources:
