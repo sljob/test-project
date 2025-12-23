@@ -1,0 +1,38 @@
+name: CI Pipeline
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Что делать
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Шаг 1: Получить код
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Шаг 2: Показать информацию
+    - name: Show info
+      run: |
+        echo "🎉 CI Pipeline запущен!"
+        echo "📦 Репозиторий: ${{ github.repository }}"
+        echo "🌿 Ветка: ${{ github.ref_name }}"
+        echo "📝 Коммит: ${{ github.sha }}"
+        echo ""
+        echo "📁 Файлы в репозитории:"
+        ls -la
+    
+    # Шаг 3: Проверить Dockerfile
+    - name: Check Dockerfile
+      run: |
+        if [ -f Dockerfile ]; then
+          echo "✅ Dockerfile найден"
+          echo "--- Содержимое ---"
+          cat Dockerfile
+        else
+          echo "⚠️ Dockerfile не найден"
+        fi
